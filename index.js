@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { spawn } from 'node:child_process';
-import { loadEnvFile } from './env.js';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
 import { getOsloShowtimesToday, getOsloShowtimesTomorrow } from './filmweb.js';
 import { formatMovieList, formatShowtimes } from './formatter.js';
 
-loadEnvFile(import.meta.url);
+dotenv.config();
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(moduleDir, '.env') });
 
 const program = new Command();
 let hasActiveProgressLine = false;
@@ -198,7 +202,11 @@ program
       const byName = filterByMovieName(showtimes, name);
       const filtered = filterByTimeRange(byName, options.from, options.to);
       clearProgressLine();
-      console.log(options.list ? formatMovieList(filtered, date) : formatShowtimes(filtered, date));
+      if (options.list) {
+        console.log(formatMovieList(filtered, date));
+      } else {
+        console.log(formatShowtimes(filtered, date));
+      }
       maybeOpenBookingUrls(filtered, options.open);
     } catch (error) {
       clearProgressLine();
@@ -223,7 +231,11 @@ program
       const byName = filterByMovieName(showtimes, name);
       const filtered = filterByTimeRange(byName, options.from, options.to);
       clearProgressLine();
-      console.log(options.list ? formatMovieList(filtered, date) : formatShowtimes(filtered, date));
+      if (options.list) {
+        console.log(formatMovieList(filtered, date));
+      } else {
+        console.log(formatShowtimes(filtered, date));
+      }
       maybeOpenBookingUrls(filtered, options.open);
     } catch (error) {
       clearProgressLine();
