@@ -7,7 +7,7 @@
 - Show all movies and showtimes for today or tomorrow
 - Filter by movie name or cinema
 - Filter by time window (`--from` / `--to`)
-- Open booking URLs directly (`--open`)
+- Open booking URLs directly (`--open`) without printing URLs
 - List movies only (`kino list` or `--list`)
 - Stats command (`kino stats`) with top movies by number of showings
 - Optional IMDb ratings (OMDb) for list mode
@@ -98,6 +98,8 @@ Open booking URLs:
 kino today housemaid --open
 ```
 
+Note: booking links are never printed in the terminal output.
+
 ### Movie list only
 
 ```bash
@@ -131,12 +133,11 @@ Oslo cinemas - 2026-03-09
 
 The Secret Agent
 
-ODEON Oslo
-14:00 2D https://www.odeonkino.no/booking/kjop/...
-19:45 2D https://www.odeonkino.no/booking/kjop/...
-
-Gimle
-19:45 2D https://nfkino.no/screening/...
+14:00 - Ringen - 2D
+19:00 - Vika - 2D
+19:45 - Gimle - 2D
+19:45 - ODEON Oslo - 2D
+20:00 - Ringen - 2D
 ```
 
 List mode:
