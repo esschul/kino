@@ -53,6 +53,7 @@ kino today
 ## OMDb / IMDb ratings (optional)
 
 IMDb ratings are only used in list mode (`kino list` or `--list`).
+Get an OMDb API key here: [https://www.omdbapi.com/apikey.aspx](https://www.omdbapi.com/apikey.aspx)
 
 If you want ratings, add an OMDb key to `.env`:
 
