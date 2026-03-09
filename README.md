@@ -9,7 +9,9 @@
 - Filter by time window (`--from` / `--to`)
 - Open booking URLs directly (`--open`) without printing URLs
 - List movies only (`kino list` or `--list`)
-- Stats command (`kino stats`) with top movies by number of showings
+- Stats command (`kino stats`) with top movies/cinemas by number of showings
+- Relative release age in stats (for example `20 days old`, `today`, `in 4 days`)
+- `New This Week` block in stats (shown only when there are matches)
 - Optional IMDb ratings (OMDb) for list mode
 - Local cache (`.kino-cache.json`) for faster responses
 
@@ -161,9 +163,13 @@ Cinemas: 8
 Time span: 12:00-21:30
 
 Top Movies (by showings)
- 12  The Secret Agent
- 10  Hamnet
-  8  Affeksjonsverdi
+ 12  The Secret Agent (20 days old)
+ 10  Hamnet (17 days old)
+  8  Affeksjonsverdi (10 days old)
+
+New This Week
+  8  Affeksjonsverdi (10 days old)
+  4  Bare et uhell (3 days old)
 
 Top Cinemas (by showings)
  42  ODEON Oslo
