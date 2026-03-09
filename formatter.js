@@ -23,8 +23,14 @@ export function formatShowtimes(showtimes, dateLabel) {
   lines.push('');
 
   const byMovie = groupByMovie(showtimes);
+  const movies = [...byMovie.entries()].sort((a, b) => {
+    if (a[1].length !== b[1].length) {
+      return b[1].length - a[1].length;
+    }
+    return a[0].localeCompare(b[0], 'nb');
+  });
 
-  for (const [movie, movieShows] of byMovie) {
+  for (const [movie, movieShows] of movies) {
     const rating = movieShows[0]?.rating;
     const ratingLabel = rating ? chalk.yellow(`  IMDb ${rating}`) : '';
     lines.push(chalk.bold.cyan(`${movie}${ratingLabel ? ` ${ratingLabel}` : ''}`));
