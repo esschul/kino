@@ -12,10 +12,11 @@ function normalizeTitle(title) {
 
 function getApiKey() {
   const apiKey = process.env.OMDB_API_KEY;
-  if (!apiKey || !apiKey.trim()) {
-    throw new Error('Missing OMDB_API_KEY. Add it to .env as OMDB_API_KEY=your_key.');
-  }
-  return apiKey.trim();
+  return typeof apiKey === 'string' ? apiKey.trim() : '';
+}
+
+function hasApiKey() {
+  return Boolean(getApiKey());
 }
 
 function normalizeForCompare(value) {
@@ -29,8 +30,13 @@ function normalizeForCompare(value) {
 }
 
 async function omdbRequest(params) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return null;
+  }
+
   const url = new URL(OMDB_ENDPOINT);
-  url.searchParams.set('apikey', getApiKey());
+  url.searchParams.set('apikey', apiKey);
   for (const [key, value] of Object.entries(params)) {
     if (typeof value === 'string' && value.trim()) {
       url.searchParams.set(key, value);
@@ -46,6 +52,10 @@ async function omdbRequest(params) {
 }
 
 function ratingFromPayload(payload) {
+  if (!payload) {
+    return '';
+  }
+
   if (
     payload?.Response === 'True' &&
     typeof payload?.imdbRating === 'string' &&
@@ -123,6 +133,17 @@ async function getRatingForTitle(title) {
 }
 
 export async function enrichWithRatings(showtimes, options = {}) {
+  if (!hasApiKey()) {
+    return showtimes.map((show) => {
+      const cleanTitle = normalizeTitle(show.title);
+      return {
+        ...show,
+        title: cleanTitle || show.title,
+        rating: ''
+      };
+    });
+  }
+
   const onProgress =
     typeof options.onProgress === 'function' ? options.onProgress : () => {};
   const uniqueTitles = [
