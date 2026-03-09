@@ -12,6 +12,7 @@
 - Stats command (`kino stats`) with top movies/cinemas by number of showings
 - Relative release age in stats (for example `20 days old`, `today`, `in 4 days`)
 - `New This Week` block in stats (shown only when there are matches)
+- Dedicated `kino new` command for new releases this week
 - Optional IMDb ratings (OMDb) for list mode
 - Local cache (`.kino-cache.json`) for faster responses
 
@@ -119,6 +120,14 @@ kino stats today
 kino stats tomorrow
 ```
 
+### New this week
+
+```bash
+kino new
+kino new today
+kino new tomorrow
+```
+
 ### Legacy filters
 
 ```bash
@@ -175,6 +184,15 @@ Top Cinemas (by showings)
  42  ODEON Oslo
  28  Ringen
  21  Saga
+```
+
+New this week:
+
+```text
+New This Week (2026-03-09)
+
+  6  Affeksjonsverdi (3 days old)
+  4  Bare et uhell (2 days old)
 ```
 
 ## Cache

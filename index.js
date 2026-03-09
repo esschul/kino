@@ -183,42 +183,70 @@ function formatStats(showtimes, date, heading = 'today') {
   lines.push('Top Movies (by showings)');
   const statsDate = new Date(`${date}T00:00:00Z`);
 
-  function daysFromStatsDate(isoDate) {
-    const target = new Date(`${isoDate}T00:00:00Z`);
-    if (Number.isNaN(target.getTime())) {
-      return null;
-    }
-    const millisPerDay = 24 * 60 * 60 * 1000;
-    return Math.round((statsDate.getTime() - target.getTime()) / millisPerDay);
-  }
-
-  function ageLabel(isoDate) {
-    const days = daysFromStatsDate(isoDate);
-    if (days === null) {
-      return '';
-    }
-    if (days < 0) {
-      const n = Math.abs(days);
-      return ` (in ${n} day${n === 1 ? '' : 's'})`;
-    }
-    if (days === 0) {
-      return ' (today)';
-    }
-    if (days === 1) {
-      return ' (1 day old)';
-    }
-    return ` (${days} days old)`;
-  }
-
   for (const [title, count] of movieCounts.slice(0, 10)) {
     const release = releaseByTitle.get(title);
-    const releasePart = release ? ageLabel(release) : '';
+    const releasePart = release ? ` ${ageLabelForDate(statsDate, release)}` : '';
     lines.push(`${count.toString().padStart(3, ' ')}  ${title}${releasePart}`);
   }
+  const newThisWeek = getNewThisWeek(showtimes, date);
+
+  if (newThisWeek.length) {
+    lines.push('');
+    lines.push('New This Week');
+    for (const movie of newThisWeek.slice(0, 10)) {
+      lines.push(`${movie.count.toString().padStart(3, ' ')}  ${movie.title} ${movie.age}`);
+    }
+  }
+  lines.push('');
+  lines.push('Top Cinemas (by showings)');
+  for (const [cinema, count] of cinemaCounts.slice(0, 10)) {
+    lines.push(`${count.toString().padStart(3, ' ')}  ${cinema}`);
+  }
+
+  return lines.join('\n');
+}
+
+function daysFromStatsDate(statsDate, isoDate) {
+  const target = new Date(`${isoDate}T00:00:00Z`);
+  if (Number.isNaN(target.getTime())) {
+    return null;
+  }
+  const millisPerDay = 24 * 60 * 60 * 1000;
+  return Math.round((statsDate.getTime() - target.getTime()) / millisPerDay);
+}
+
+function ageLabelForDate(statsDate, isoDate) {
+  const days = daysFromStatsDate(statsDate, isoDate);
+  if (days === null) {
+    return '';
+  }
+  if (days < 0) {
+    const n = Math.abs(days);
+    return `(in ${n} day${n === 1 ? '' : 's'})`;
+  }
+  if (days === 0) {
+    return '(today)';
+  }
+  if (days === 1) {
+    return '(1 day old)';
+  }
+  return `(${days} days old)`;
+}
+
+function getNewThisWeek(showtimes, date) {
+  const movieCounts = countBy(showtimes, (show) => show.title);
+  const releaseByTitle = new Map();
+  for (const show of showtimes) {
+    if (!releaseByTitle.has(show.title) && typeof show.releaseDate === 'string' && show.releaseDate) {
+      releaseByTitle.set(show.title, show.releaseDate.slice(0, 10));
+    }
+  }
+
+  const statsDate = new Date(`${date}T00:00:00Z`);
   const weekStart = new Date(statsDate);
   weekStart.setUTCDate(weekStart.getUTCDate() - 6);
 
-  const newThisWeek = movieCounts
+  return movieCounts
     .map(([title, count]) => ({
       title,
       count,
@@ -239,24 +267,11 @@ function formatStats(showtimes, date, heading = 'today') {
         return b.count - a.count;
       }
       return a.title.localeCompare(b.title, 'nb');
-    });
-
-  if (newThisWeek.length) {
-    lines.push('');
-    lines.push('New This Week');
-    for (const movie of newThisWeek.slice(0, 10)) {
-      lines.push(
-        `${movie.count.toString().padStart(3, ' ')}  ${movie.title}${ageLabel(movie.release)}`
-      );
-    }
-  }
-  lines.push('');
-  lines.push('Top Cinemas (by showings)');
-  for (const [cinema, count] of cinemaCounts.slice(0, 10)) {
-    lines.push(`${count.toString().padStart(3, ' ')}  ${cinema}`);
-  }
-
-  return lines.join('\n');
+    })
+    .map((movie) => ({
+      ...movie,
+      age: ageLabelForDate(statsDate, movie.release)
+    }));
 }
 
 program
@@ -385,6 +400,40 @@ program
     } catch (error) {
       clearProgressLine();
       console.error(error.message || 'Failed to load stats');
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('new [day]')
+  .description("List movies that are new this week for 'today' (default) or 'tomorrow'")
+  .action(async (day) => {
+    try {
+      const target = (day || 'today').toLocaleLowerCase('nb').trim();
+      if (target !== 'today' && target !== 'tomorrow') {
+        throw new Error("Invalid day. Use 'today' or 'tomorrow'.");
+      }
+
+      const loader = target === 'tomorrow' ? loadTomorrowShowtimes : loadTodayShowtimes;
+      const { date, showtimes } = await loader();
+      const items = getNewThisWeek(showtimes, date);
+
+      clearProgressLine();
+      if (!items.length) {
+        console.log(`No new movies this week for ${date}.`);
+        return;
+      }
+
+      const lines = [];
+      lines.push(`New This Week (${date})`);
+      lines.push('');
+      for (const item of items) {
+        lines.push(`${item.count.toString().padStart(3, ' ')}  ${item.title} ${item.age}`);
+      }
+      console.log(lines.join('\n'));
+    } catch (error) {
+      clearProgressLine();
+      console.error(error.message || 'Failed to load new movies');
       process.exitCode = 1;
     }
   });
