@@ -1,0 +1,19 @@
+{
+  "name": "kino",
+  "version": "1.0.0",
+  "description": "CLI for Oslo cinema showtimes via Filmweb GraphQL",
+  "type": "module",
+  "bin": {
+    "kino": "./index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0"
+  }
+}
