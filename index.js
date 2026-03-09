@@ -7,9 +7,9 @@ import dotenv from 'dotenv';
 import { getOsloShowtimesToday, getOsloShowtimesTomorrow } from './filmweb.js';
 import { formatMovieList, formatShowtimes } from './formatter.js';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(moduleDir, '.env') });
+dotenv.config({ path: path.join(moduleDir, '.env'), quiet: true });
 
 const program = new Command();
 let hasActiveProgressLine = false;
@@ -158,6 +158,13 @@ function formatStats(showtimes, date, heading = 'today') {
 
   const movieCounts = countBy(showtimes, (show) => show.title);
   const cinemaCounts = countBy(showtimes, (show) => show.cinema);
+  const releaseByTitle = new Map();
+  for (const show of showtimes) {
+    if (!releaseByTitle.has(show.title) && typeof show.releaseDate === 'string' && show.releaseDate) {
+      const iso = show.releaseDate.slice(0, 10);
+      releaseByTitle.set(show.title, iso);
+    }
+  }
   const times = showtimes
     .map((show) => show.time)
     .filter(Boolean)
@@ -174,8 +181,74 @@ function formatStats(showtimes, date, heading = 'today') {
   }
   lines.push('');
   lines.push('Top Movies (by showings)');
+  const statsDate = new Date(`${date}T00:00:00Z`);
+
+  function daysFromStatsDate(isoDate) {
+    const target = new Date(`${isoDate}T00:00:00Z`);
+    if (Number.isNaN(target.getTime())) {
+      return null;
+    }
+    const millisPerDay = 24 * 60 * 60 * 1000;
+    return Math.round((statsDate.getTime() - target.getTime()) / millisPerDay);
+  }
+
+  function ageLabel(isoDate) {
+    const days = daysFromStatsDate(isoDate);
+    if (days === null) {
+      return '';
+    }
+    if (days < 0) {
+      const n = Math.abs(days);
+      return ` (in ${n} day${n === 1 ? '' : 's'})`;
+    }
+    if (days === 0) {
+      return ' (today)';
+    }
+    if (days === 1) {
+      return ' (1 day old)';
+    }
+    return ` (${days} days old)`;
+  }
+
   for (const [title, count] of movieCounts.slice(0, 10)) {
-    lines.push(`${count.toString().padStart(3, ' ')}  ${title}`);
+    const release = releaseByTitle.get(title);
+    const releasePart = release ? ageLabel(release) : '';
+    lines.push(`${count.toString().padStart(3, ' ')}  ${title}${releasePart}`);
+  }
+  const weekStart = new Date(statsDate);
+  weekStart.setUTCDate(weekStart.getUTCDate() - 6);
+
+  const newThisWeek = movieCounts
+    .map(([title, count]) => ({
+      title,
+      count,
+      release: releaseByTitle.get(title) || ''
+    }))
+    .filter((movie) => {
+      if (!movie.release) {
+        return false;
+      }
+      const releaseDate = new Date(`${movie.release}T00:00:00Z`);
+      return releaseDate >= weekStart && releaseDate <= statsDate;
+    })
+    .sort((a, b) => {
+      if (a.release !== b.release) {
+        return b.release.localeCompare(a.release);
+      }
+      if (a.count !== b.count) {
+        return b.count - a.count;
+      }
+      return a.title.localeCompare(b.title, 'nb');
+    });
+
+  if (newThisWeek.length) {
+    lines.push('');
+    lines.push('New This Week');
+    for (const movie of newThisWeek.slice(0, 10)) {
+      lines.push(
+        `${movie.count.toString().padStart(3, ' ')}  ${movie.title}${ageLabel(movie.release)}`
+      );
+    }
   }
   lines.push('');
   lines.push('Top Cinemas (by showings)');

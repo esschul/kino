@@ -44,6 +44,7 @@ const MOVIES_QUERY = `
         versionId
         title
         titleOriginal
+        premiere
       }
     }
   }
@@ -227,7 +228,27 @@ function buildOriginalTitleMap(movies) {
   return map;
 }
 
-function normalizeShows(rawShows, originalTitleMap) {
+function buildPremiereMap(movies) {
+  const map = new Map();
+
+  for (const movie of movies) {
+    const premiere = typeof movie?.premiere === 'string' ? movie.premiere : '';
+    if (!premiere) {
+      continue;
+    }
+
+    if (typeof movie?.mainVersionId === 'string' && movie.mainVersionId) {
+      map.set(movie.mainVersionId, premiere);
+    }
+    if (typeof movie?.versionId === 'string' && movie.versionId) {
+      map.set(movie.versionId, premiere);
+    }
+  }
+
+  return map;
+}
+
+function normalizeShows(rawShows, originalTitleMap, premiereMap) {
   return rawShows
     .map((show) => ({
       title: show?.movieTitle || 'Unknown movie',
@@ -238,6 +259,10 @@ function normalizeShows(rawShows, originalTitleMap) {
       omdbTitle:
         originalTitleMap.get(show?.movieMainVersionId) ||
         originalTitleMap.get(show?.movieVersionId) ||
+        '',
+      releaseDate:
+        premiereMap.get(show?.movieMainVersionId) ||
+        premiereMap.get(show?.movieVersionId) ||
         ''
     }))
     .filter((show) => show.title && show.cinema && show.time)
@@ -288,7 +313,10 @@ async function getRawMovies(dateValue) {
   const cacheKey = `movies:Oslo:${dateValue}`;
   const cached = await readCache(cacheKey);
 
-  if (cached) {
+  if (
+    cached &&
+    (!cached.length || Object.prototype.hasOwnProperty.call(cached[0], 'premiere'))
+  ) {
     return cached;
   }
 
@@ -305,7 +333,8 @@ async function getRawMovies(dateValue) {
 export async function getOsloShowtimesForDate(date, options = {}) {
   const [shows, movies] = await Promise.all([getRawShows(date), getRawMovies(date)]);
   const originalTitleMap = buildOriginalTitleMap(movies);
-  const normalized = normalizeShows(shows, originalTitleMap);
+  const premiereMap = buildPremiereMap(movies);
+  const normalized = normalizeShows(shows, originalTitleMap, premiereMap);
   if (options.includeRatings) {
     return enrichWithRatings(normalized, options);
   }
