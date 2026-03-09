@@ -13,19 +13,6 @@ function groupByMovie(showtimes) {
   return grouped;
 }
 
-function groupByCinema(shows) {
-  const grouped = new Map();
-
-  for (const show of shows) {
-    if (!grouped.has(show.cinema)) {
-      grouped.set(show.cinema, []);
-    }
-    grouped.get(show.cinema).push(show);
-  }
-
-  return grouped;
-}
-
 export function formatShowtimes(showtimes, dateLabel) {
   if (!showtimes.length) {
     return chalk.yellow(`No showtimes found for ${dateLabel}.`);
@@ -42,19 +29,21 @@ export function formatShowtimes(showtimes, dateLabel) {
     const ratingLabel = rating ? chalk.yellow(`  IMDb ${rating}`) : '';
     lines.push(chalk.bold.cyan(`${movie}${ratingLabel ? ` ${ratingLabel}` : ''}`));
     lines.push('');
+    const sorted = [...movieShows].sort((a, b) => {
+      const [ah, am] = (a.time || '').split(':').map(Number);
+      const [bh, bm] = (b.time || '').split(':').map(Number);
+      const aMinutes = Number.isFinite(ah) && Number.isFinite(am) ? ah * 60 + am : Number.MAX_SAFE_INTEGER;
+      const bMinutes = Number.isFinite(bh) && Number.isFinite(bm) ? bh * 60 + bm : Number.MAX_SAFE_INTEGER;
 
-    const byCinema = groupByCinema(movieShows);
-
-    for (const [cinema, cinemaShows] of byCinema) {
-      lines.push(chalk.bold(cinema));
-
-      for (const show of cinemaShows) {
-        const formatPart = show.format ? ` ${chalk.magenta(show.format)}` : '';
-        const bookingPart = show.bookingUrl ? ` ${chalk.dim(show.bookingUrl)}` : '';
-        lines.push(`${chalk.green(show.time)}${formatPart}${bookingPart}`);
+      if (aMinutes !== bMinutes) {
+        return aMinutes - bMinutes;
       }
+      return a.cinema.localeCompare(b.cinema, 'nb');
+    });
 
-      lines.push('');
+    for (const show of sorted) {
+      const formatPart = show.format ? show.format : '-';
+      lines.push(`${chalk.green(show.time)} - ${chalk.bold(show.cinema)} - ${chalk.magenta(formatPart)}`);
     }
 
     lines.push('');
@@ -69,9 +58,36 @@ export function formatMovieList(showtimes, dateLabel) {
   }
 
   const unique = new Map();
+  const statsDate = new Date(`${dateLabel}T00:00:00Z`);
+
+  function ageLabel(isoDate) {
+    if (!isoDate) {
+      return '';
+    }
+    const target = new Date(`${isoDate}T00:00:00Z`);
+    if (Number.isNaN(target.getTime()) || Number.isNaN(statsDate.getTime())) {
+      return '';
+    }
+    const days = Math.round((statsDate.getTime() - target.getTime()) / (24 * 60 * 60 * 1000));
+    if (days < 0) {
+      const n = Math.abs(days);
+      return `(in ${n} day${n === 1 ? '' : 's'})`;
+    }
+    if (days === 0) {
+      return '(today)';
+    }
+    if (days === 1) {
+      return '(1 day old)';
+    }
+    return `(${days} days old)`;
+  }
+
   for (const show of showtimes) {
     if (!unique.has(show.title)) {
-      unique.set(show.title, show.rating || '');
+      unique.set(show.title, {
+        rating: show.rating || '',
+        releaseDate: typeof show.releaseDate === 'string' ? show.releaseDate.slice(0, 10) : ''
+      });
     }
   }
 
@@ -80,10 +96,11 @@ export function formatMovieList(showtimes, dateLabel) {
   lines.push('');
 
   const movies = [...unique.entries()]
-    .map(([title, rating]) => ({
+    .map(([title, info]) => ({
       title,
-      rating,
-      score: Number.parseFloat(rating)
+      rating: info.rating,
+      releaseDate: info.releaseDate,
+      score: Number.parseFloat(info.rating)
     }))
     .sort((a, b) => {
       const aValid = Number.isFinite(a.score);
@@ -100,8 +117,9 @@ export function formatMovieList(showtimes, dateLabel) {
 
   for (const movie of movies) {
     const rating = movie.rating;
-    const suffix = rating ? chalk.yellow(` (IMDb ${rating})`) : '';
-    lines.push(`${chalk.cyan(movie.title)}${suffix}`);
+    const ratingPart = rating ? chalk.yellow(` (IMDb ${rating})`) : '';
+    const agePart = movie.releaseDate ? chalk.dim(` ${ageLabel(movie.releaseDate)}`) : '';
+    lines.push(`${chalk.cyan(movie.title)}${ratingPart}${agePart}`);
   }
 
   return lines.join('\n');
